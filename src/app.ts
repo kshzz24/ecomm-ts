@@ -9,6 +9,7 @@ import orderRoute from "./routes/order.js";
 import { config } from "dotenv";
 import morgan from "morgan";
 import cors from "cors";
+import { v2 as cloudinary } from 'cloudinary';
 import paymentRoute from "./routes/payment.js";
 import dashboardRoute from "./routes/stats.js";
 config({
@@ -22,6 +23,17 @@ connectDB(uri);
 
 export const stripe = new Stripe(stripeKey);
 export const myCache = new NodeCache();
+
+
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_NAME,
+  api_key: process.env.CLOUDINARY_API,
+  api_secret: process.env.CLOUDINARY_SECRET_API
+});
+
+
+console.log(process.env.CLOUDINARY_NAME);
 
 const app = express();
 app.use(cors());
@@ -38,7 +50,7 @@ app.use("/api/v1/order", orderRoute);
 app.use("/api/v1/payment", paymentRoute);
 app.use("/api/v1/dashboard", dashboardRoute);
 
-app.use("/uploads", express.static("uploads"));
+// app.use("/uploads", express.static("uploads"));
 // Error handling
 app.use(errorMiddleware);
 app.listen(port, () => {

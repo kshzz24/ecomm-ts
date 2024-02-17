@@ -11,6 +11,7 @@ import { rm } from "fs";
 import { faker } from "@faker-js/faker";
 import { myCache } from "../app.js";
 import { invalidatesCache } from "../utils/features.js";
+import { v2 as cloudinary } from "cloudinary"
 
 // Revaildate on new, update or delete Product & New Order
 
@@ -28,6 +29,8 @@ export const getLatestProducts = TryCatch(
       products = await Product.find({}).sort({ createdAt: -1 }).limit(5);
       myCache.set("latest-products", JSON.stringify(products));
     }
+
+
 
     return res.status(201).json({
       success: true,
@@ -117,28 +120,41 @@ export const addNewProduct = TryCatch(
     next: NextFunction
   ) => {
     const { name, price, category, stock } = req.body;
-    const photo = req.file;
+    console.log(req.body);
 
+    
+    console.log(req.file);
+    
+    const photo = req.file;
+  
+    console.log(req.file);
+    
     if (!photo) return next(new ErrorHandler("Photo Not Avaliable", 400));
-    if (!name || !price || !stock || !category) {
-      rm(photo.path, () => {
-        console.log("Invalid Product Image Deleted");
-      });
-      return next(new ErrorHandler("Please enter all details", 400));
-    }
+    // if (!name || !price || !stock || !category) {
+    // //   rm(photo.path, () => {
+    // //     console.log("Invalid Product Image Deleted");
+    // //   });
+    // //   return next(new ErrorHandler("Please enter all details", 400));
+    // }
+
+    
+    const result = await cloudinary.uploader.upload(req.file?.path!, {
+      folder: "ecomm-ts"
+    })
+    
     await Product.create({
       name,
       price,
       stock,
       category: category.toLowerCase(),
-      photo: photo?.path,
+      photo: result?.secure_url,
     });
 
     invalidatesCache({ product: true,    admin: true, });
 
     return res.status(201).json({
       success: true,
-      message: "New Product Created",
+      message: "Product Created Successfully"
     });
   }
 );
@@ -151,17 +167,22 @@ export const updateProduct = TryCatch(async (req, res, next) => {
   const photo = req.file;
   const product = await Product.findById(_id);
   if (!product) return next(new ErrorHandler("Product Doesnt exists", 400));
+  
+  if(photo){
 
-  if (photo) {
-    rm(product.photo!, () => {
-      console.log("Invalid Product Image Deleted");
-    });
-    product.photo = photo.path;
-  }
+  await cloudinary.uploader.destroy(product.photo);
+  const result = await cloudinary.uploader.upload(req.file?.path!, {
+    folder: "ecomm-ts"
+  })
+
+   product.photo = result.secure_url;
+  
+}
   if (name) product.name = name;
   if (price) product.price = price;
   if (category) product.category = category;
   if (stock) product.stock = stock;
+  
   console.log(product);
 
   await product.save();
@@ -184,9 +205,7 @@ export const deleteProduct = TryCatch(
     
     const product = await Product.findById(_id);
     if (!product) return next(new ErrorHandler("Product Does not Exist", 400));
-    rm(product.photo!, () => {
-      console.log("Old Product Image Deleted");
-    });
+    await cloudinary.uploader.destroy(product.photo);
     await Product.findByIdAndDelete(_id);
     invalidatesCache({ product: true, productId : String( product._id),     admin: true, });
     return res.status(200).json({
