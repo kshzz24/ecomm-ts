@@ -188,7 +188,7 @@ export const updateProduct = TryCatch(async (req, res, next) => {
     const photosURL = await uploadToCloudinary(photos);
     const publicIds = product.photos.map((photo) => photo.public_id);
     await deleteMultipleImages(publicIds);
-    product.photos = photosURL;
+    product.photos = photosURL as any;
   }
   if (name) product.name = name;
   if (price) product.price = price;
