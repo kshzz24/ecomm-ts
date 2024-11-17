@@ -19,7 +19,7 @@ config({
 const port = process.env.PORT || 4000;
 let uri = process.env.DB_URL || "";
 const stripeKey = process.env.STRIPE_KEY || "";
-const redisURI = process.env.REDIS_URI || ""
+const redisURI = process.env.REDIS_URI || "";
 connectDB(uri);
 export const redis = connectRedis(redisURI);
 export const stripe = new Stripe(stripeKey);
@@ -36,9 +36,8 @@ console.log(process.env.CLOUDINARY_NAME);
 const app = express();
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true
   })
 );
 app.use(express.json());
