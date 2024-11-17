@@ -13,6 +13,7 @@ export interface NewProductReqBody {
   category: string;
   price: number;
   stock: number;
+  description: string;
 }
 
 export type ControllerType = (
@@ -44,29 +45,27 @@ export type InvalidateCacheProps = {
   product?: boolean;
   order?: boolean;
   admin?: boolean;
+  review?: boolean;
   userId?: string;
   orderId?: string;
-  productId?:string | string[];
+  productId?: string | string[];
 };
 
-
 export type OrderItemType = {
-   name:string;
-   photo:string;
-   price:number;
-   quantity:number;
-   productId:string;
+  name: string;
+  photo: string;
+  price: number;
+  quantity: number;
+  productId: string;
 };
 
 export type shippingInfoType = {
-  address:string;
-  state:string;
-  city:string;
-  country:string;
-  pinCode:number;
+  address: string;
+  state: string;
+  city: string;
+  country: string;
+  pinCode: number;
 };
-
-
 
 export interface NewOrderReqBody {
   shippingInfo: shippingInfoType;
@@ -76,5 +75,5 @@ export interface NewOrderReqBody {
   shippingCharges: number;
   discount: number;
   total: number;
-  orderItems:OrderItemType[]
+  orderItems: OrderItemType[];
 }

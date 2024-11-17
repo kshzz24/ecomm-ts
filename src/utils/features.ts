@@ -1,11 +1,33 @@
 import mongoose, { Document, connection } from "mongoose";
 import { InvalidateCacheProps, OrderItemType } from "../types/types.js";
-import { myCache } from "../app.js";
+import { myCache, redis } from "../app.js";
 import { Product } from "../models/product.js";
 import { Order } from "../models/order.js";
 import { es } from "@faker-js/faker";
+import { v2 as Cloudinary, UploadApiResponse } from "cloudinary";
+import { Review } from "../models/review.js";
+import Redis from "ioredis";
+
 // LObaryrnZNaVoxV2
 // kshitizb02
+
+const getBase64 = (file: Express.Multer.File) => {
+  return `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+};
+
+export const connectRedis = (redisURI: string) => {
+  const redis = new Redis(redisURI);
+
+  redis.on("connect", () => {
+    console.log("Redis Connected");
+  });
+
+  redis.on("error", (error) => {
+    console.error("Redis Connection Error:", error);
+  });
+  return redis;
+};
+
 export const connectDB = (uri: string) => {
   mongoose
     .connect(uri, {
@@ -15,46 +37,44 @@ export const connectDB = (uri: string) => {
     .catch((e) => console.log(e));
 };
 
-export const invalidatesCache =  ({
+export const invalidatesCache = async ({
   product,
   admin,
   order,
   userId,
   orderId,
   productId,
+  review,
 }: InvalidateCacheProps) => {
+  if (review) {
+    await redis.del([`reviews-${productId}`]);
+  }
+
   if (product) {
     const productKeys: string[] = [
       "latest-products",
       "categories",
       "all-products",
     ];
-    if (typeof productId === "string") {
-      productKeys.push(`product-${productId}`);
-    }
-    if (typeof productId === "object") {
-      productId.forEach((i) => {
-        productKeys.push(`product-${i}`);
-      });
-    }
-    myCache.del(productKeys);
+
+    if (typeof productId === "string") productKeys.push(`product-${productId}`);
+
+    if (typeof productId === "object")
+      productId.forEach((i) => productKeys.push(`product-${i}`));
+
+    await redis.del(productKeys);
   }
   if (order) {
-    const orderKeys: string[] = [
+    const ordersKeys: string[] = [
       "all-orders",
       `my-orders-${userId}`,
       `order-${orderId}`,
     ];
 
-    // const orders = await Order.find({}).select("_id");
-    // orders.forEach((i) => {
-    //   orderKeys.push(`order-${i._id}`);
-    // });
-
-    myCache.del(orderKeys);
+    await redis.del(ordersKeys);
   }
   if (admin) {
-    myCache.del([
+    await redis.del([
       "admin-stats",
       "admin-pie-charts",
       "admin-bar-charts",
@@ -120,7 +140,7 @@ export const getChartData = ({
   today: Date;
   property?: "discount" | "total";
 }) => {
-  const data:number[] = new Array(length).fill(0);
+  const data: number[] = new Array(length).fill(0);
 
   docArr.forEach((i) => {
     const creationDate = i.createdAt;
@@ -135,4 +155,56 @@ export const getChartData = ({
     }
   });
   return data;
+};
+export const uploadToCloudinary = async (files: Express.Multer.File[]) => {
+  // for single
+  // const result = await Cloudinary.uploader.upload(getBase64(files[0]));
+
+  // for multiple upload we cannot use for loop as it will stop for each iteration
+  // console.log(files, "filessss");
+  const promises = files.map(async (file) => {
+    return new Promise<UploadApiResponse>((resolve, reject) => {
+      Cloudinary.uploader.upload(getBase64(file), (error, result) => {
+        if (error) return reject(error);
+        resolve(result!);
+      });
+    });
+  });
+
+  const result = await Promise.all(promises);
+  return result.map((i) => ({
+    public_id: i.public_id,
+    url: i.url,
+  }));
+};
+
+export const deleteMultipleImages = async (publicIds: string[]) => {
+  const promises = publicIds.map(async (publicId) => {
+    return new Promise<UploadApiResponse>((resolve, reject) => {
+      Cloudinary.uploader.destroy(publicId, (error, result) => {
+        if (error) return reject(error);
+        resolve(result!);
+      });
+    });
+  });
+
+  const result = await Promise.all(promises);
+};
+
+export const findAverageRatings = async (
+  productId: mongoose.Types.ObjectId
+) => {
+  let totalRating = 0;
+
+  const reviews = await Review.find({ product: productId });
+  reviews.forEach((review) => {
+    totalRating += review.rating;
+  });
+
+  const averateRating = Math.floor(totalRating / reviews.length) || 0;
+
+  return {
+    numOfReviews: reviews.length,
+    ratings: averateRating,
+  };
 };
