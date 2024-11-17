@@ -6,7 +6,7 @@ import { Order } from "../models/order.js";
 import { es } from "@faker-js/faker";
 import { v2 as Cloudinary, UploadApiResponse } from "cloudinary";
 import { Review } from "../models/review.js";
-import Redis from "ioredis";
+import IORedis from "ioredis";
 
 // LObaryrnZNaVoxV2
 // kshitizb02
@@ -16,13 +16,13 @@ const getBase64 = (file: Express.Multer.File) => {
 };
 
 export const connectRedis = (redisURI: string) => {
-  const redis = new Redis(redisURI);
+  const redis = new IORedis(redisURI);
 
   redis.on("connect", () => {
     console.log("Redis Connected");
   });
 
-  redis.on("error", (error) => {
+  redis.on("error", (error: any) => {
     console.error("Redis Connection Error:", error);
   });
   return redis;
