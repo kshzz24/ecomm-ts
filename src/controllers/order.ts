@@ -56,7 +56,7 @@ export const getSingleOrderDetails = TryCatch(async (req, res, next) => {
 
   let order;
 
-  order = await redis.get(order);
+  order = await redis.get(order ?? "");
 
   if (order) {
     order = JSON.parse(order);
